@@ -1,65 +1,70 @@
 package com.example.diplom;
+
 import android.content.ContentValues;
-import android.content.Context;
 import android.database.Cursor;
-import android.database.sqlite.SQLiteDatabase;
+import android.database.SQLException;
 import android.database.sqlite.SQLiteOpenHelper;
+import android.database.sqlite.SQLiteDatabase;
+import android.content.Context;
+import android.util.Log;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 public class DatabaseHelper extends SQLiteOpenHelper {
-    private static final String DATABASE_NAME = "user_db";
-    private static final int DATABASE_VERSION = 1;
+    private static String DB_PATH;
+    private static final String DB_NAME = "diplom.db";
+    private static final int SCHEMA = 1;
+    static final String TABLE = "users";
+    // Название столбцов
+    static final String COLUMN_ID = "id";
+    static final String COLUMN_SURNAME = "surname";
+    static final String COLUMN_NAME = "name";
+    static final String COLUMN_E_MAIL = "email";
+    static final String COLUMN_PASSWORD = "password";
+    private Context myContext;
 
-    // Creating table query
-    private static final String TABLE_CREATE = "create table " +
-            User.TABLE + "(" +
-            User.COLUMN_ID + " integer primary key autoincrement, " +
-            User.COLUMN_NAME + " text not null, " +
-            User.COLUMN_SURNAME + " text not null, " +
-            User.COLUMN_EMAIL + " text not null, " +
-            User.COLUMN_PASSWORD + " text not null);";
-
-    public DatabaseHelper(Context context) {
-        super(context, DATABASE_NAME, null, DATABASE_VERSION);
+    DatabaseHelper(Context context) {
+        super(context, DB_NAME, null, SCHEMA);
+        this.myContext=context;
+        DB_PATH =context.getFilesDir().getPath() + DB_NAME;
     }
 
     @Override
-    public void onCreate(SQLiteDatabase db) {
-        db.execSQL(TABLE_CREATE);
-    }
-
+    public void onCreate(SQLiteDatabase db) { }
     @Override
-    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS " + User.TABLE);
-        onCreate(db);
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) { }
+
+    void create_db(){
+
+        File file = new File(DB_PATH);
+        if (!file.exists()) {
+            //получаем локальную бд как поток
+            try(InputStream myInput = myContext.getAssets().open(DB_NAME);
+                // Открываем пустую бд
+                OutputStream myOutput = new FileOutputStream(DB_PATH)) {
+
+                // побайтово копируем данные
+                byte[] buffer = new byte[1024];
+                int length;
+                while ((length = myInput.read(buffer)) > 0) {
+                    myOutput.write(buffer, 0, length);
+                }
+                myOutput.flush();
+            }
+            catch(IOException ex){
+                Log.d("DatabaseHelper", ex.getMessage());
+            }
+        }
     }
 
-    public long insertUser(String name, String surname, String email, String password) {
-        SQLiteDatabase db = this.getWritableDatabase();
+    public SQLiteDatabase open()throws SQLException {
 
-        ContentValues values = new ContentValues();
-        values.put(User.COLUMN_NAME, name);
-        values.put(User.COLUMN_SURNAME, surname);
-        values.put(User.COLUMN_EMAIL, email);
-        values.put(User.COLUMN_PASSWORD, password);
-
-        long id = db.insert(User.TABLE, null, values);
-        db.close();
-        return id;
-    }
-    public Cursor searchUserByEmailAndPassword(String email, String password) {
-        SQLiteDatabase db = this.getReadableDatabase();
-        return db.rawQuery("SELECT * FROM User WHERE COLUMN_EMAIL = ? AND COLUMN_PASSWORD = ?", new String[]{email, password});
+        return SQLiteDatabase.openDatabase(DB_PATH, null, SQLiteDatabase.OPEN_READWRITE);
     }
 
-
-    public class User {
-        public static final String TABLE = "users";
-        public static final String COLUMN_ID = "_id";
-        public static final String COLUMN_NAME = "name";
-        public static final String COLUMN_SURNAME = "surname";
-        public static final String COLUMN_EMAIL = "email";
-        public static final String COLUMN_PASSWORD = "password";
-    }
 
 }
 
